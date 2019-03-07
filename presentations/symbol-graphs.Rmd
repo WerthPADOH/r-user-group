@@ -1,0 +1,214 @@
+---
+title: "Symbol Graphs"
+author: "Nathan Werth"
+date: "`r Sys.Date()`"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+```
+
+## Unicode
+
+There are many languages
+
+Each language has many symbols
+
+Computers need a mapping to match binary data to symbols ("encoding")
+
+### Ye olde encodings
+
+Encodings worked for the subset of symbols needed for the task. Consequently,
+there were *too many* encodings.
+
+ASCII was the most popular, but only supported $2^8 = 256$ characters
+
+### Unicode
+
+Universal standard which can support up to 1,114,112 chaarcters
+
+Currently supports 137,374 characters (146 scripts and 2,666 emoji)
+
+## Graphing unicode symbols
+
+```{r firstExample}
+smiley_face <- "\U263A"
+plot.new()
+text(0.5, 0.5, smiley_face, cex = 10)
+```
+
+## Finding codes with emojifont
+
+```{r emojifont}
+library(emojifont)
+search_emoji("smile")
+smiley_face2 <- emoji("smiley")
+plot.new()
+text(0.5, 0.5, smiley_face2, cex = 10)
+```
+
+Fallback reference: search engine ("unicode for <something>")
+
+Double-fallback reference: http://www.unicode.org/charts/
+
+## Labeling
+
+`r knitr::include_graphics("images/symbol-axis-bar.png")`
+
+Source: Wipro
+
+## Setting up the data
+
+```{r labeling, message=FALSE}
+library(dplyr)
+
+categories <- c(
+  retail         = emoji("dollar"),
+  consulting     = emoji("speech_balloon"),
+  transportation = emoji("airplane"),
+  construction   = emoji("building_construction"),
+  food           = emoji("hamburger"),
+  steel          = emoji("chains"),
+  automobile     = emoji("car"),
+  industrial     = emoji("gear"),
+  publishing     = emoji("closed_book"),
+  telecom        = emoji("telephone")
+)
+
+increases <- data_frame(
+    category = names(categories),
+    symbol   = categories,
+    value    = c(9.6, 5, 4.3, 4.2, 3.4, 3.4, 2, 1.2, 0.8, 0.4)
+  ) %>%
+  mutate(plot_label = paste(category, symbol)) %>%
+  mutate(plot_label = reorder(plot_label, value))
+```
+
+## Recreation
+
+```{r labelingRedraw}
+library(ggplot2)
+library(healthpa)
+
+ggplot(increases, aes(x = plot_label, y = value)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = NULL, y = NULL) +
+  theme_website() +
+  theme(axis.text.y = element_text(size = 20, hjust = 1))
+```
+
+## Hiccups
+
+Many fonts don't include all characters
+
+Try to find a replacement
+
+```{r alternative, fig.height=4}
+possible <- c("metal", "link")
+plot.new()
+text(c(0.3, 0.7), 0.3, emoji(possible), cex = 10)
+text(c(0.3, 0.7), 0.1, possible)
+```
+
+Not a cog, but the chain will do
+
+## Icon charts
+
+Show counts as numbers of objects, coded by color and shape
+
+```{r iconCharts, fig.height=8, fig.width=6}
+space_demography <- starwars %>%
+  mutate(
+    gender = factor(gender, c("female", "male", "hermaphrodite", "none")),
+    race   = case_when(
+      species == "Human" ~ "Human",
+      species == "Droid" ~ "Droid",
+      TRUE               ~ "Alien"
+    )
+  ) %>%
+  arrange(gender, race) %>%
+  select(gender, race)
+
+summary(space_demography)
+```
+
+---
+
+```{r iconChartsPlot, fig.height=3}
+space_demography %>%
+  ggplot(aes(x = race, color = gender, shape = race)) +
+  geom_point(aes(y = 1), size = 5, position = "stack") +
+  scale_shape_manual(values = c(
+    Human = emoji("bust_in_silhouette"),
+    Droid = emoji("robot"),
+    Alien = emoji("alien")
+  )) +
+  coord_flip() +
+  theme_void()
+```
+
+## Info boxes
+
+Solid-colored blocks with "translucent" symbols and summary stats
+
+```{r infoBoxes}
+library(tidyr)
+
+data("midwest", package = "ggplot2")
+boone <- midwest %>%
+  filter(county == "BOONE", state == "IL") %>%
+  select(poptotal, percollege, percbelowpoverty) %>%
+  gather(key = "item", value = "value") %>%
+  mutate(
+    icon = case_when(
+      item == "poptotal"         ~ emoji("bust_in_silhouette"),
+      item == "percollege"       ~ emoji("mortar_board"),
+      item == "percbelowpoverty" ~ emoji("dollar")
+    )
+  )
+```
+
+---
+
+```{r infoBoxesPlot}
+ggplot(boone, aes(x = item, color = item, y = 0)) +
+  geom_tile(
+    aes(fill = item),
+    color = NA, height = 0.9, width = 0.9) +
+  geom_text(
+    aes(label = item),
+    y = 0.4, size = 5) +
+  geom_text(
+    aes(label = icon, color = item),
+    y = 0.1, size = 35) +
+  geom_text(
+    aes(label = round(value, 1), color = item),
+    y = -0.3, size = 10) +
+  scale_fill_brewer(type = "qual", palette = "Set2") +
+  scale_color_brewer(type = "qual", palette = "Pastel2") +
+  guides(color = FALSE, fill = FALSE, label = FALSE) +
+  coord_equal() +
+  theme_void()
+```
+
+## Mapping
+
+```{r mapping}
+library(maps)
+
+data("us.cities", package = "maps")
+pa_cities <- us.cities %>%
+  filter(country.etc == "PA") %>%
+  mutate(
+    icon = ifelse(
+      capital == 2,
+      emoji("classical_building"),
+      emoji("cityscape")
+    )
+  )
+
+map(database = "county", regions = "Pennsylvania")
+text(pa_cities[["long"]], pa_cities[["lat"]], pa_cities[["icon"]], cex = 2)
+```
