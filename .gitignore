@@ -1,0 +1,6 @@
+*.RData
+.Rproj.user
+*.Rhistory
+doh-internal
+agendas
+meeting-notes
